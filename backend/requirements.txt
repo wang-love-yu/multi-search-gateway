@@ -1,0 +1,10 @@
+fastapi==0.141.1
+uvicorn==0.48.0
+SQLAlchemy==2.0.50
+psycopg[binary]==3.2.10
+redis==6.4.0
+cryptography==46.0.4
+argon2-cffi==25.1.0
+pydantic==2.13.4
+pydantic-settings==2.14.1
+httpx==0.28.1

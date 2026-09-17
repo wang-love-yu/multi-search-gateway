@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+secrets
+backups
+**/node_modules
+**/.next
+**/out
+**/__pycache__
+**/.pytest_cache
+**/.venv
+**/*.db
+**/*.dump
+**/*.pem
+**/*.key
+**/*.tsbuildinfo

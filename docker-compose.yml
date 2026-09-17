@@ -1,0 +1,109 @@
+name: multi-search-gateway
+services:
+  caddy:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Run scripts/init_env.py first}
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+    depends_on:
+      backend:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      PUBLIC_ORIGIN: https://${DOMAIN}
+      DATABASE_URL: postgresql+psycopg://gateway:${POSTGRES_PASSWORD:?Set database password}@postgres:5432/gateway
+      REDIS_URL: redis://:${REDIS_PASSWORD:?Set Redis password}@redis:6379/0
+      MASTER_KEY: ${MASTER_KEY:?Generate a random encryption key}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-owner}
+      BOOTSTRAP_PASSWORD: ${BOOTSTRAP_PASSWORD:?Set an initial administrator password}
+      TRUST_GATEWAY_IP: "true"
+      SESSION_HOURS: "12"
+      LOG_RETENTION_DAYS: "30"
+    networks: [edge, data]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 768m
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gateway
+      POSTGRES_DB: gateway
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set database password}
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    networks: [data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U gateway -d gateway"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: [redis-server, --appendonly, "yes", --appendfsync, everysec, --maxmemory, 128mb, --maxmemory-policy, noeviction, --requirepass, "${REDIS_PASSWORD:?Set Redis password}"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    volumes: [redis_data:/data]
+    networks: [data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt: [no-new-privileges:true]
+    mem_limit: 192m
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+
+networks:
+  edge:
+  data:
+    internal: true
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

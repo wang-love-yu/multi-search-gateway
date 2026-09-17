@@ -1,0 +1,50 @@
+{
+    admin off
+    persist_config off
+    http_port 8080
+    https_port 8443
+    servers {
+        timeouts {
+            read_header 5s
+            read_body 15s
+            write 40s
+            idle 120s
+        }
+    }
+}
+{$DOMAIN} {
+    encode zstd gzip
+    request_body {
+        max_size 64KB
+    }
+    header {
+        -Server
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+        X-Frame-Options DENY
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    }
+    import /etc/caddy/csp.caddy
+    @api path /api/admin/* /v1/*
+    handle @api {
+        reverse_proxy backend:8000 {
+            # Always overwrite client-supplied values. Backend trusts only this header.
+            header_up X-Gateway-Client-IP {remote_host}
+            transport http {
+                dial_timeout 3s
+                response_header_timeout 35s
+            }
+        }
+    }
+    redir / /admin/ 302
+    redir /admin /admin/ 308
+    handle_path /admin/* {
+        root * /srv/admin
+        header Cache-Control no-store
+        file_server
+    }
+    handle {
+        respond "Not found" 404
+    }
+}
