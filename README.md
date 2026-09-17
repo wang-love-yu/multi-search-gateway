@@ -155,14 +155,14 @@ python -m pytest -q
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run typecheck
 npm run build
 ```
 
-首次开发安装后保留 `package-lock.json`。本次离线开发环境不能解析 npm/PyPI 域名，因此尚未生成可验证的 npm 锁文件；Docker 构建支持有锁文件时用 `npm ci`，无锁文件时先安装生成。CI 会上传生成的锁文件和静态产物。提交锁文件后应统一使用 `npm ci`。
+`frontend/package-lock.json` 已从通过验证的 GitHub Actions 构建产物中取回并提交。日常安装使用 `npm ci`；需要升级依赖时再修改版本并重新执行测试。Docker 有锁文件时使用 `npm ci`。本地环境无法解析 npm/PyPI，但 GitHub Actions 已完成依赖安装、类型检查、生产构建和镜像构建。
 
-CI 配置包含后端测试、PostgreSQL/Redis 集成测试、前端类型检查与构建、Docker 镜像构建和 Caddy 配置校验。**配置存在不等于 CI 已通过**，以仓库 Actions 的具体运行结果为准。
+首次实现提交 `a9359af` 的 [GitHub Actions 验证](https://github.com/wang-love-yu/multi-search-gateway/actions/runs/35249139279)已通过：55 项后端测试（含 PostgreSQL/Redis 集成测试）、前端类型检查与生产构建、两种 Docker 镜像构建、Caddy 与 Compose 配置校验。后续提交仍以对应 Actions 运行结果为准。
 
 ## 目录
 
